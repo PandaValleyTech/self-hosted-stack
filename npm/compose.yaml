@@ -1,0 +1,22 @@
+# Extra stream ports (e.g. databases proxied via NPM streams) go in
+# compose.override.yaml, see compose.override.example.yaml.
+services:
+  app:
+    image: jc21/nginx-proxy-manager:2.16.0
+    container_name: nginx-proxy-manager
+    restart: unless-stopped
+    ports:
+      - "80:80"   # HTTP
+      - "443:443" # HTTPS
+      - "${NPM_ADMIN_BIND:-127.0.0.1}:81:81" # Admin UI
+    environment:
+      TZ: ${TZ:-Etc/UTC}
+    volumes:
+      - ./data/data:/data
+      - ./data/letsencrypt:/etc/letsencrypt
+      - ./snippets:/snippets:ro
+
+networks:
+  default:
+    name: ${APP_NETWORK:-apps}
+    external: true

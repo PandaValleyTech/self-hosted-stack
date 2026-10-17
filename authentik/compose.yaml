@@ -1,0 +1,71 @@
+# Based on the official compose file:
+# https://github.com/goauthentik/authentik/blob/main/lifecycle/container/compose.yml
+#
+# Postgres sits on a private network only. Server and worker also join the
+# shared network so NPM can reach authentik-server:9000 (no host ports).
+x-authentik: &authentik
+  image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2026.8.3}
+  restart: unless-stopped
+  shm_size: 512mb
+  depends_on:
+    postgresql:
+      condition: service_healthy
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    AUTHENTIK_POSTGRESQL__HOST: authentik-postgresql
+    AUTHENTIK_POSTGRESQL__NAME: ${PG_DB:-authentik}
+    AUTHENTIK_POSTGRESQL__USER: ${PG_USER:-authentik}
+    AUTHENTIK_POSTGRESQL__PASSWORD: ${PG_PASS:?database password required}
+    AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:?secret key required}
+    TZ: ${TZ:-Etc/UTC}
+  networks:
+    - default
+    - backend
+
+services:
+  postgresql:
+    image: docker.io/library/postgres:16-alpine
+    container_name: authentik-postgresql
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${PG_DB:-authentik}
+      POSTGRES_USER: ${PG_USER:-authentik}
+      POSTGRES_PASSWORD: ${PG_PASS:?database password required}
+      TZ: ${TZ:-Etc/UTC}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    networks:
+      - backend
+
+  server:
+    <<: *authentik
+    container_name: authentik-server
+    command: server
+    volumes:
+      - ./data/authentik:/data
+      - ./data/templates:/templates
+
+  worker:
+    <<: *authentik
+    container_name: authentik-worker
+    command: worker
+    # Outposts managed by Authentik would need the Docker socket mounted here
+    # (and user: root); not needed yet.
+    volumes:
+      - ./data/authentik:/data
+      - ./data/certs:/certs
+      - ./data/templates:/templates
+
+networks:
+  default:
+    name: ${APP_NETWORK:-apps}
+    external: true
+  backend:

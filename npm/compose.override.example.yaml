@@ -1,0 +1,6 @@
+# Host-specific stream ports. Copy to compose.override.yaml (gitignored);
+# Compose merges it automatically and appends these to the base ports.
+services:
+  app:
+    ports:
+      - "5432:5432" # PostgreSQL
