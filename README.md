@@ -4,6 +4,7 @@ Docker Compose stacks for a small self-hosted setup:
 
 - **[Nginx Proxy Manager](npm/):** the reverse proxy and TLS termination. It's the only stack that publishes host ports.
 - **[Authentik](authentik/):** identity provider and SSO, including forward auth for apps that have no login of their own.
+- **[Gitea](gitea/):** Git hosting. Git over SSH is published directly on port 2222.
 
 Each stack lives in its own directory and runs independently. All stacks join one shared Docker network, so NPM can reach every service by container name.
 
@@ -71,6 +72,6 @@ Every stack joins the external network `${APP_NETWORK:-apps}`. To use a differen
    ```
 2. Put databases and other internal services on a stack-local network. Only the container NPM proxies to should join the shared network.
 3. Give that container a unique `container_name`, and use it as the forward host in NPM.
-4. Don't publish host ports. Add a proxy host in NPM instead.
+4. Don't publish host ports. Add a proxy host in NPM instead. The exception is non-HTTP protocols that clients connect to directly, such as git over SSH.
 5. Add `.envrc` (`source_up` + `dotenv_if_exists .env`) and `.env.example`.
 6. For SSO, use the app's native OIDC/SAML support with Authentik if it has it. Otherwise use forward auth (see [npm/snippets/README.md](npm/snippets/README.md)).

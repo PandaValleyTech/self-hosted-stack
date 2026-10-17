@@ -12,6 +12,7 @@ scripts/network.sh        creates the shared Docker network (idempotent)
 npm/                      Nginx Proxy Manager
   snippets/               nginx includes mounted at /snippets (Authentik forward auth)
 authentik/                Authentik server, worker, Postgres
+gitea/                    Gitea, Postgres (git SSH published on 2222)
 ```
 
 Each stack has `compose.yaml`, `.envrc`, `.env.example`, and gitignored `.env` and `data/` (bind-mounted state).
@@ -28,7 +29,7 @@ Each stack has `compose.yaml`, `.envrc`, `.env.example`, and gitignored `.env` a
   Run `scripts/network.sh` once before the first `up`. Don't hardcode network names.
 - **Databases stay private.** Stack-internal services such as Postgres go on a stack-local network (e.g. `backend`). Only the containers NPM needs to reach join the shared network.
 - **Unique container names** (`authentik-server`, `nginx-proxy-manager`). Services on the shared network are addressed by container name, so generic service names like `db` can clash across stacks.
-- **No host ports** except on NPM (80/443, admin UI 81 on localhost). Everything else is reached through NPM proxy hosts.
+- **No host ports** except on NPM (80/443, admin UI 81 on localhost) and non-HTTP protocols clients connect to directly (Gitea SSH). Everything else is reached through NPM proxy hosts.
 - **Env loading.** The root `.envrc` loads the root `.env`. Each stack's `.envrc` runs `source_up` and then loads its own `.env`. Compose files use `${VAR:-default}` so they still work without direnv. Secrets use `${VAR:?message}`.
 - **Pin image versions.** Never use `latest`.
 - **Data** goes under `<stack>/data/` as bind mounts, not named volumes.
