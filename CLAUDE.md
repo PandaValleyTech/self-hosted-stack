@@ -32,7 +32,7 @@ Each stack has `compose.yaml`, `.envrc`, `.env.example`, and gitignored `.env` a
 - **No host ports** except on NPM (80/443, admin UI 81 on localhost) and non-HTTP protocols clients connect to directly (Gitea SSH). Everything else is reached through NPM proxy hosts.
 - **Env loading.** The root `.envrc` loads the root `.env`. Each stack's `.envrc` runs `source_up` and then loads its own `.env`. Compose files use `${VAR:-default}` so they still work without direnv. Secrets use `${VAR:?message}`.
 - **Pin image versions.** Never use `latest`.
-- **Data** goes under `<stack>/data/` as bind mounts, not named volumes.
+- **Data** goes under `<stack>/data/` as bind mounts, not named volumes. A host that needs other storage (e.g. NFS) changes it in `compose.override.yaml`, not in `compose.yaml`. Compose merges service volumes by container path, so an override entry with the same target replaces the bind mount with a named volume defined there. See the stack's `compose.override.example.yaml`.
 - **Host-specific additions** (e.g. NPM stream ports) go in a gitignored `compose.override.yaml`, with a committed `compose.override.example.yaml`.
 
 ## SSO

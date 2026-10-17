@@ -1,0 +1,34 @@
+# Optional: keep data on an NFS share instead of ./data. Copy to
+# compose.override.yaml (gitignored) and adjust the server and export paths.
+#
+# Compose merges service volumes by container path, so each entry below
+# replaces the matching ./data bind mount from compose.yaml. Drop the entries
+# you want to keep local. Postgres over NFS is sensitive to locking and fsync
+# behaviour: use NFSv4 with hard mounts, or keep it local and rely on dumps.
+#
+# The exports must be writable by the container users (Gitea 1000, Postgres
+# 70 on alpine); watch out for root_squash. Volume options are fixed when the
+# volume is created: after changing them, `docker compose down` and
+# `docker volume rm <project>_<volume>` before the next `up`.
+services:
+  server:
+    volumes:
+      - gitea-data:/data
+
+  db:
+    volumes:
+      - gitea-postgres:/var/lib/postgresql/data
+
+volumes:
+  gitea-data:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: &nfs-opts addr=nas.example.lan,nfsvers=4.1,rw,hard
+      device: ":/export/gitea/gitea"
+  gitea-postgres:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: *nfs-opts
+      device: ":/export/gitea/postgres"

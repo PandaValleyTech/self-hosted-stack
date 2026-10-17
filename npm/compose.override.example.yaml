@@ -4,3 +4,24 @@ services:
   app:
     ports:
       - "5432:5432" # PostgreSQL
+    # Optional: keep data on an NFS share instead of ./data. Volumes are merged
+    # by container path, so these replace the matching bind mounts. Uncomment
+    # together with the top-level volumes block below. See
+    # gitea/compose.override.example.yaml for caveats.
+    # volumes:
+    #   - npm-data:/data
+    #   - npm-letsencrypt:/etc/letsencrypt
+
+# volumes:
+#   npm-data:
+#     driver: local
+#     driver_opts:
+#       type: nfs
+#       o: &nfs-opts addr=nas.example.lan,nfsvers=4.1,rw,hard
+#       device: ":/export/npm/data"
+#   npm-letsencrypt:
+#     driver: local
+#     driver_opts:
+#       type: nfs
+#       o: *nfs-opts
+#       device: ":/export/npm/letsencrypt"
