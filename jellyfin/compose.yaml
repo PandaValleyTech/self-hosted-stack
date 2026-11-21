@@ -1,0 +1,26 @@
+# Single container on the shared network; NPM reaches jellyfin:8096.
+# Media is mounted read-write, because Jellyfin can save artwork, NFO files,
+# trickplay images and subtitles next to the media (per-library options).
+# For a read-only mount, see compose.override.example.yaml. LAN discovery and
+# hardware transcoding are host-specific too.
+# The container name comes from JELLYFIN_INSTANCE, so scripts/new-instance.sh
+# can run more instances of this file (see README.md).
+services:
+  jellyfin:
+    image: docker.io/jellyfin/jellyfin:12.4
+    container_name: ${JELLYFIN_INSTANCE:-jellyfin}
+    restart: unless-stopped
+    user: ${JELLYFIN_UID:-1000}:${JELLYFIN_GID:-1000}
+    environment:
+      TZ: ${TZ:-Etc/UTC}
+      # URL handed to clients during auto-discovery and in some links.
+      JELLYFIN_PublishedServerUrl: ${JELLYFIN_URL:-}
+    volumes:
+      - ./data/config:/config
+      - ./data/cache:/cache
+      - ${JELLYFIN_MEDIA_PATH:-./data/media}:/media
+
+networks:
+  default:
+    name: ${APP_NETWORK:-apps}
+    external: true

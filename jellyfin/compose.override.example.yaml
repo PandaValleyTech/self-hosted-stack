@@ -1,0 +1,45 @@
+# Optional host-specific additions. Copy to compose.override.yaml (gitignored)
+# and keep only what you need.
+#
+# 1. Media on an NFS share instead of JELLYFIN_MEDIA_PATH. Compose merges
+#    service volumes by container path, so the entry below replaces the /media
+#    bind mount from compose.yaml. The export must be writable by
+#    JELLYFIN_UID if Jellyfin saves anything into media folders; watch out
+#    for root_squash. Volume options are fixed when the volume is created:
+#    after changing them, `docker compose down` and
+#    `docker volume rm <project>_<volume>`.
+#
+#    Read-only instead: if every library keeps artwork, metadata and trickplay
+#    in /config (the per-library "save ... into media folders" options off),
+#    a read-only mount protects the library from bugs and plugins. Keep the
+#    path and add :ro, e.g.
+#      - ${JELLYFIN_MEDIA_PATH:-./data/media}:/media:ro
+#    Do the same for a second instance that shares another instance's media.
+#
+# 2. Hardware transcoding (Intel Quick Sync / VAAPI). Pass the GPU through and
+#    add the group that owns /dev/dri/renderD128 on the host
+#    (`stat -c %g /dev/dri/renderD128`). Then enable it in
+#    Dashboard -> Playback -> Transcoding.
+#
+# 3. LAN client discovery. Apps on the local network find the server by UDP
+#    broadcast on 7359. That's the one port worth publishing; everything else
+#    goes through NPM. Skip it if you enter the server URL in apps by hand.
+#    Only one instance per host can publish it.
+services:
+  jellyfin:
+    volumes:
+      - jellyfin-media:/media
+    # devices:
+    #   - /dev/dri:/dev/dri
+    # group_add:
+    #   - "992"
+    # ports:
+    #   - "7359:7359/udp"
+
+volumes:
+  jellyfin-media:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=nas.example.lan,nfsvers=4.1,rw,hard
+      device: ":/export/media"
