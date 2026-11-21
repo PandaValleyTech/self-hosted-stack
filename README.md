@@ -5,6 +5,11 @@ Docker Compose stacks for a small self-hosted setup:
 - **[Nginx Proxy Manager](npm/):** the reverse proxy and TLS termination. It's the only stack that publishes host ports.
 - **[Authentik](authentik/):** identity provider and SSO, including forward auth for apps that have no login of their own.
 - **[Gitea](gitea/):** Git hosting. Git over SSH is published directly on port 2222.
+- **[Immich](immich/):** photo and video library. SSO via OIDC.
+- **[Jellyfin](jellyfin/):** media server. SSO via an OIDC plugin for the web, Quick Connect for apps (they can't do forward auth).
+- **[Paperless-ngx](paperless/):** document management with OCR. SSO via OIDC.
+- **[KitchenOwl](kitchenowl/):** shared grocery lists, recipes and meal plans. SSO via OIDC.
+- **[OpenSpeedTest](openspeedtest/):** browser speed test. Behind Authentik forward auth.
 
 Each stack lives in its own directory and runs independently. All stacks join one shared Docker network, so NPM can reach every service by container name.
 
@@ -60,6 +65,20 @@ Then follow the first-run steps in [npm/README.md](npm/README.md) and [authentik
 ### Shared network
 
 Every stack joins the external network `${APP_NETWORK:-apps}`. To use a different network, set `APP_NETWORK` in the root `.env`, then run `scripts/network.sh` and recreate the stacks.
+
+## Running more than one instance
+
+App stacks (so far `immich/` and `jellyfin/`) can run several independent instances side by side, e.g. a personal photo library and a family one. `docker compose up -d` in the stack directory runs the default instance. For another one:
+
+```sh
+scripts/new-instance.sh immich family    # creates immich/instances/family/ (gitignored)
+cd immich/instances/family
+$EDITOR .env                             # instance name and DB password are already set
+direnv allow
+docker compose up -d
+```
+
+Each instance has its own containers (`immich-family-*`), private network, `.env` and `data/`, and is managed from its own directory. The script refuses `npm` and `authentik` (one per host) and any stack whose container names don't come from its `<APP>_INSTANCE` variable yet. It also needs its own NPM proxy host and, for SSO, its own Authentik application. Details are in the stack's README.
 
 ## Adding a stack
 
