@@ -1,0 +1,38 @@
+# Optional host-specific additions. Copy to compose.override.yaml (gitignored)
+# and keep only what you need.
+#
+# 1. Library on an NFS share instead of ./data/library.
+#    Compose merges service volumes by container path, so the entry below
+#    replaces the IMMICH_UPLOAD_PATH bind mount from compose.yaml. (Setting
+#    IMMICH_UPLOAD_PATH to an already-mounted host path works too.)
+#    Keep data/postgres on local disk: Immich doesn't support its database on
+#    a network share. The automatic dumps in <library>/backups cover it.
+#    The export must be writable by root in the container; watch out for
+#    root_squash. Volume options are fixed when the volume is created: after
+#    changing them, `docker compose down` and
+#    `docker volume rm <project>_<volume>` before the next `up`.
+#
+# 2. Hardware acceleration (Intel Quick Sync / VAAPI shown). Pass the GPU to
+#    the server for video transcoding, then pick the backend in
+#    Administration -> Settings -> Video Transcoding.
+#    For ML on an Intel GPU, also use the -openvino image tag. Other backends
+#    (CUDA, ROCm, ...) are in the release's hwaccel.*.yml files.
+services:
+  server:
+    volumes:
+      - immich-library:/data
+    # devices:
+    #   - /dev/dri:/dev/dri
+
+  # machine-learning:
+  #   image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-v3.4.2}-openvino
+  #   devices:
+  #     - /dev/dri:/dev/dri
+
+volumes:
+  immich-library:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=nas.example.lan,nfsvers=4.1,rw,hard
+      device: ":/export/immich/library"

@@ -1,0 +1,88 @@
+# Based on the official release compose file (v3.4.2):
+# https://github.com/immich-app/immich/releases/download/v3.4.2/docker-compose.yml
+#
+# Postgres, Valkey and machine learning sit on a private network only. The
+# server also joins the shared network so NPM can reach immich-server:2283.
+# Services are addressed by container name, so DB_HOSTNAME etc. are set
+# explicitly instead of relying on Immich's defaults (database, redis, ...).
+#
+# Container names come from IMMICH_INSTANCE (default "immich"), so the same
+# file can run several independent instances side by side. Each instance is a
+# directory under instances/ that includes this file; see README.md.
+services:
+  server:
+    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-v3.4.2}
+    container_name: ${IMMICH_INSTANCE:-immich}-server
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ:-Etc/UTC}
+      DB_HOSTNAME: ${IMMICH_INSTANCE:-immich}-postgresql
+      DB_DATABASE_NAME: ${IMMICH_DB_NAME:-immich}
+      DB_USERNAME: ${IMMICH_DB_USER:-immich}
+      DB_PASSWORD: ${IMMICH_DB_PASS:?database password required}
+      REDIS_HOSTNAME: ${IMMICH_INSTANCE:-immich}-redis
+      IMMICH_MACHINE_LEARNING_URL: http://${IMMICH_INSTANCE:-immich}-machine-learning:3003
+    volumes:
+      - ${IMMICH_UPLOAD_PATH:-./data/library}:/data
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      disable: false
+    networks:
+      - default
+      - backend
+
+  machine-learning:
+    # For hardware acceleration, see compose.override.example.yaml.
+    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-v3.4.2}
+    container_name: ${IMMICH_INSTANCE:-immich}-machine-learning
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Etc/UTC}
+      MACHINE_LEARNING_MODEL_REVISION: v2
+    volumes:
+      - ./data/model-cache:/cache
+    healthcheck:
+      disable: false
+    networks:
+      - backend
+
+  redis:
+    image: docker.io/valkey/valkey:9@sha256:418652cfb58ef879d4978c33553735d7147016032d5aefaa14c828e611eb9dfd
+    container_name: ${IMMICH_INSTANCE:-immich}-redis
+    restart: unless-stopped
+    healthcheck:
+      test: redis-cli ping | grep -q PONG || exit 1
+    networks:
+      - backend
+
+  database:
+    # Immich's own Postgres build (VectorChord for search). Don't swap this for
+    # plain postgres, and only change it when the release compose file does.
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23
+    container_name: ${IMMICH_INSTANCE:-immich}-postgresql
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${IMMICH_DB_NAME:-immich}
+      POSTGRES_USER: ${IMMICH_DB_USER:-immich}
+      POSTGRES_PASSWORD: ${IMMICH_DB_PASS:?database password required}
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+      DB_STORAGE_TYPE: ${IMMICH_DB_STORAGE_TYPE:-SSD}
+      TZ: ${TZ:-Etc/UTC}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    shm_size: 128mb
+    healthcheck:
+      disable: false
+    networks:
+      - backend
+
+networks:
+  default:
+    name: ${APP_NETWORK:-apps}
+    external: true
+  backend:
