@@ -22,14 +22,14 @@ services:
       - tika
     environment:
       PAPERLESS_TIKA_ENABLED: 1
-      PAPERLESS_TIKA_ENDPOINT: http://paperless-tika:9998
-      PAPERLESS_TIKA_GOTENBERG_ENDPOINT: http://paperless-gotenberg:3000
+      PAPERLESS_TIKA_ENDPOINT: http://${PAPERLESS_INSTANCE:-paperless}-tika:9998
+      PAPERLESS_TIKA_GOTENBERG_ENDPOINT: http://${PAPERLESS_INSTANCE:-paperless}-gotenberg:3000
     volumes:
       - paperless-media:/usr/src/paperless/media
 
   gotenberg:
     image: docker.io/gotenberg/gotenberg:8.38
-    container_name: paperless-gotenberg
+    container_name: ${PAPERLESS_INSTANCE:-paperless}-gotenberg
     restart: unless-stopped
     command:
       - "gotenberg"
@@ -40,7 +40,7 @@ services:
 
   tika:
     image: docker.io/apache/tika:3.3.1.0
-    container_name: paperless-tika
+    container_name: ${PAPERLESS_INSTANCE:-paperless}-tika
     restart: unless-stopped
     networks:
       - backend

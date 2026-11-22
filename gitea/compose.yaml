@@ -1,9 +1,12 @@
 # Postgres sits on a private network only. Gitea also joins the shared
 # network so NPM can reach gitea:3000. Git over SSH is published directly.
+# Container names and internal hostnames come from GITEA_INSTANCE (default
+# "gitea"), so scripts/new-instance.sh can run more instances of this file;
+# each one needs its own GITEA_SSH_PORT.
 services:
   server:
     image: docker.gitea.com/gitea:1.26.1
-    container_name: gitea
+    container_name: ${GITEA_INSTANCE:-gitea}
     restart: unless-stopped
     depends_on:
       db:
@@ -15,7 +18,7 @@ services:
       GITEA__server__SSH_PORT: ${GITEA_SSH_PORT:-2222}
       GITEA__server__SSH_LISTEN_PORT: 22
       GITEA__database__DB_TYPE: postgres
-      GITEA__database__HOST: gitea-postgresql:5432
+      GITEA__database__HOST: ${GITEA_INSTANCE:-gitea}-postgresql:5432
       GITEA__database__NAME: ${GITEA_DB_NAME:-gitea}
       GITEA__database__USER: ${GITEA_DB_USER:-gitea}
       GITEA__database__PASSWD: ${GITEA_DB_PASS:?database password required}
@@ -32,7 +35,7 @@ services:
 
   db:
     image: docker.io/library/postgres:16-alpine
-    container_name: gitea-postgresql
+    container_name: ${GITEA_INSTANCE:-gitea}-postgresql
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${GITEA_DB_NAME:-gitea}

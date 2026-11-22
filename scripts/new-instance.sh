@@ -68,6 +68,7 @@ EOF
 
 # .env from the stack's example: set the instance name and fill empty secrets.
 generated=()
+ports=()
 set_var=false
 {
   echo "# Instance '$name' of $stack, created by scripts/new-instance.sh."
@@ -84,6 +85,8 @@ set_var=false
       echo "$key=$(openssl rand -hex 32)"
       generated+=("$key")
     else
+      # Host ports are copied as-is and would clash with the default instance.
+      [[ $line =~ ^[A-Z0-9_]*_PORT=.+ ]] && ports+=("$line")
       echo "$line"
     fi
   done < "$stack_dir/.env.example"
@@ -96,10 +99,13 @@ echo "Created $rel (Compose project '$project', containers '$project*')."
 if ((${#generated[@]})); then
   echo "Generated: ${generated[*]}"
 fi
+if ((${#ports[@]})); then
+  echo "Host ports copied from the example, change them before starting: ${ports[*]}"
+fi
 cat <<EOF
 
 Next:
-  1. Review $rel/.env (paths, URLs, client IDs; see $stack/README.md).
+  1. Review $rel/.env (paths, URLs, ports, client IDs; see $stack/README.md).
   2. cd $rel && direnv allow
   3. docker compose up -d
   4. Add an NPM proxy host for the instance's own hostname, forwarding to its

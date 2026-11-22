@@ -6,24 +6,28 @@
 # private network. The backend uses SQLite in data/; see README.md for
 # Postgres.
 #
+# Container names and the backend hostname come from KITCHENOWL_INSTANCE
+# (default "kitchenowl"), so scripts/new-instance.sh can run more instances of
+# this file (see README.md).
+#
 # .env is passed through to the backend, so optional settings (OIDC, SMTP,
 # OPEN_REGISTRATION, ...) can go there without editing this file.
 services:
   web:
     image: docker.io/tombursch/kitchenowl-web:${KITCHENOWL_VERSION:-v0.8.1}
-    container_name: kitchenowl
+    container_name: ${KITCHENOWL_INSTANCE:-kitchenowl}
     restart: unless-stopped
     depends_on:
       - backend
     environment:
-      BACK_URL: kitchenowl-backend:5000
+      BACK_URL: ${KITCHENOWL_INSTANCE:-kitchenowl}-backend:5000
     networks:
       - default
       - backend
 
   backend:
     image: docker.io/tombursch/kitchenowl-backend:${KITCHENOWL_VERSION:-v0.8.1}
-    container_name: kitchenowl-backend
+    container_name: ${KITCHENOWL_INSTANCE:-kitchenowl}-backend
     restart: unless-stopped
     env_file:
       - path: .env

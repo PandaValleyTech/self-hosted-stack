@@ -1,10 +1,12 @@
 # Single stateless container on the shared network; NPM reaches
 # openspeedtest:3000. It has no login, so the NPM proxy host puts it behind
 # Authentik forward auth (see README.md).
+# The container name comes from OPENSPEEDTEST_INSTANCE, so
+# scripts/new-instance.sh can run more instances of this file.
 services:
   openspeedtest:
     image: docker.io/openspeedtest/latest:v2.0.9
-    container_name: openspeedtest
+    container_name: ${OPENSPEEDTEST_INSTANCE:-openspeedtest}
     restart: unless-stopped
     environment:
       TZ: ${TZ:-Etc/UTC}

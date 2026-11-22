@@ -5,12 +5,16 @@
 # the shared network so NPM can reach paperless:8000. Tika and Gotenberg
 # (Office/email parsing) are optional, see compose.override.example.yaml.
 #
+# Container names and internal hostnames come from PAPERLESS_INSTANCE
+# (default "paperless"), so scripts/new-instance.sh can run more instances of
+# this file (see README.md).
+#
 # .env is passed through to Paperless as well, so any PAPERLESS_* setting
 # (OCR language, SSO, ...) can go there without editing this file.
 services:
   webserver:
     image: ghcr.io/paperless-ngx/paperless-ngx:3.5.1
-    container_name: paperless
+    container_name: ${PAPERLESS_INSTANCE:-paperless}
     restart: unless-stopped
     depends_on:
       db:
@@ -23,9 +27,9 @@ services:
     environment:
       PAPERLESS_URL: ${PAPERLESS_URL:?public URL required, e.g. https://paperless.example.com}
       PAPERLESS_SECRET_KEY: ${PAPERLESS_SECRET_KEY:?secret key required}
-      PAPERLESS_REDIS: redis://paperless-redis:6379
+      PAPERLESS_REDIS: redis://${PAPERLESS_INSTANCE:-paperless}-redis:6379
       PAPERLESS_DBENGINE: postgresql
-      PAPERLESS_DBHOST: paperless-postgresql
+      PAPERLESS_DBHOST: ${PAPERLESS_INSTANCE:-paperless}-postgresql
       PAPERLESS_DBNAME: ${PAPERLESS_DBNAME:-paperless}
       PAPERLESS_DBUSER: ${PAPERLESS_DBUSER:-paperless}
       PAPERLESS_DBPASS: ${PAPERLESS_DBPASS:?database password required}
@@ -43,7 +47,7 @@ services:
 
   broker:
     image: docker.io/valkey/valkey:9-alpine
-    container_name: paperless-redis
+    container_name: ${PAPERLESS_INSTANCE:-paperless}-redis
     restart: unless-stopped
     volumes:
       - ./data/redis:/data
@@ -52,7 +56,7 @@ services:
 
   db:
     image: docker.io/library/postgres:18-alpine
-    container_name: paperless-postgresql
+    container_name: ${PAPERLESS_INSTANCE:-paperless}-postgresql
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${PAPERLESS_DBNAME:-paperless}

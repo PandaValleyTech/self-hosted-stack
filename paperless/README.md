@@ -46,6 +46,16 @@ Use OIDC. Paperless supports it natively through django-allauth. Forward auth wo
 
 Group sync (`PAPERLESS_SOCIAL_ACCOUNT_SYNC_GROUPS`) is possible but optional. It needs a `groups` scope in Authentik, and the groups must already exist in Paperless.
 
+## Running more than one instance
+
+For a fully separate archive (a business next to the household, say). Within one instance, Paperless's own users, groups and document permissions are usually enough.
+
+```sh
+scripts/new-instance.sh paperless office    # creates paperless/instances/office/, containers paperless-office*
+```
+
+The script generates the secret key and database password. Set `PAPERLESS_URL` and `PAPERLESS_CONSUME_PATH` in its `.env` (never share a consume folder between instances), then `docker compose up -d` from that directory, and add an NPM proxy host forwarding to `paperless-office:8000`. Each instance needs its own Authentik provider, because the redirect URI contains the hostname. Details on how instances work are in [`immich/README.md`](../immich/README.md#running-more-than-one-instance).
+
 ## Things to know
 
 - **Backups:** the exporter writes documents plus a `manifest.json` with all metadata, and can be re-imported into a fresh install:

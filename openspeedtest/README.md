@@ -38,6 +38,16 @@ OpenSpeedTest has no login of its own. Left open, anyone who finds the hostname 
 
 If the hostname only resolves on your LAN, an NPM **Access List** limited to local subnets works too. Forward auth also covers the case where the hostname leaks or DNS changes later.
 
+## Running more than one instance
+
+Rarely useful: a second instance on the same host measures the same path as the first. The stack supports it anyway, like every app stack here, for example to give a separate hostname its own Authentik provider and access group.
+
+```sh
+scripts/new-instance.sh openspeedtest lan2    # creates openspeedtest/instances/lan2/, containers openspeedtest-lan2*
+```
+
+Then `docker compose up -d` from that directory, and add an NPM proxy host forwarding to `openspeedtest-lan2:3000` with the same Advanced config, plus its own forward-auth Proxy Provider in Authentik (added to the embedded outpost). Details on how instances work are in [`immich/README.md`](../immich/README.md#running-more-than-one-instance).
+
 ## Things to know
 
 - **Backups:** nothing to back up. The container is stateless.

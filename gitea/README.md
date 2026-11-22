@@ -13,6 +13,56 @@ Git hosting: Gitea plus PostgreSQL.
 3. In NPM, add a proxy host for your domain → `http://gitea:3000`, with Websockets on and SSL.
 4. Open the site and complete the installer. Set the base URL to your public HTTPS URL, and the SSH port to `GITEA_SSH_PORT`.
 
+## SSO with Authentik
+
+Use OIDC, not NPM forward auth. Forward auth breaks git over HTTPS, API tokens and webhooks.
+
+1. In Authentik, create an OAuth2/OpenID provider and application. The redirect URI is `https://<gitea>/user/oauth2/<source name>/callback`.
+   Use **Confidential** client type and select a signing key, so tokens are signed with RS256. Bind a group to the application to control who can sign in.
+2. Add the login source in Gitea. Either use Site Administration → Authentication Sources → Add (OAuth2 → OpenID Connect), or the CLI. Put the client ID and secret in `.env` first. The CLI must run as `git`, because Gitea refuses to run as root:
+   ```sh
+   docker exec -u git gitea gitea admin auth add-oauth --name authentik \
+     --provider openidConnect \
+     --key "$GITEA_OIDC_CLIENT_ID" --secret "$GITEA_OIDC_CLIENT_SECRET" \
+     --auto-discover-url https://<authentik>/application/o/<slug>/.well-known/openid-configuration \
+     --scopes email --scopes profile
+   docker restart gitea
+   ```
+   - `--name` becomes part of the callback URL, so it must match the redirect URI in Authentik.
+   - Gitea adds the `openid` scope itself, and `profile` includes Authentik's `groups` claim.
+   - **Restart Gitea after any `auth add-oauth`/`update-oauth`.** The running server caches login sources, so CLI changes only take effect after a restart.
+   - Gitea stores the credentials in its database, so they don't need to stay in `.env` afterwards.
+3. **Existing accounts (matched by username or email):** an SSO login that matches an existing local account is linked to it, not duplicated. How depends on `[oauth2_client] ACCOUNT_LINKING`:
+   - `login` (default): Gitea asks for the local password once.
+   - `auto`: links by matching email. Make sure Authentik emails match Gitea's first.
+4. To let new users register only through SSO:
+   ```yaml
+   GITEA__service__ALLOW_ONLY_EXTERNAL_REGISTRATION: "true"
+   GITEA__oauth2_client__ENABLE_AUTO_REGISTRATION: "true"
+   GITEA__oauth2_client__USERNAME: preferred_username
+   ```
+5. **Admin rights from an Authentik group** (optional):
+   ```sh
+   docker exec -u git gitea gitea admin auth update-oauth --id 1 \
+     --group-claim-name groups --admin-group gitea-admins
+   docker restart gitea
+   ```
+   Gitea syncs admin status on every SSO login. Anyone **not** in the group loses admin rights, so add yourself to the group in Authentik first. Logging in with a local password doesn't change admin status. To restore admin rights to someone by hand:
+   ```sh
+   docker exec gitea-postgresql psql -U <user> -d <db> -c "UPDATE \"user\" SET is_admin = true WHERE name = '<username>';"
+   ```
+6. Keep one local admin account with a password, as a way in if Authentik is down.
+
+## Running more than one instance
+
+For a fully separate Gitea (a second organisation, a test instance for upgrades). Usually one instance with several organisations is enough.
+
+```sh
+scripts/new-instance.sh gitea lab    # creates gitea/instances/lab/, containers gitea-lab*
+```
+
+The script generates the database password and warns that `GITEA_SSH_PORT` was copied from the example: give the instance its own port (e.g. 2223) before `docker compose up -d`, since two instances can't both publish 2222. Then add an NPM proxy host forwarding to `gitea-lab:3000`, and its own Authentik provider. The commands in this README that name `gitea` or `gitea-postgresql` take the instance's container names instead. Details on how instances work are in [`immich/README.md`](../immich/README.md#running-more-than-one-instance).
+
 ## Settings via environment
 
 Any `app.ini` setting can be set as `GITEA__<section>__<KEY>` in `compose.yaml`. Gitea writes these into `app.ini` on every start, so for those keys the environment always wins over manual edits.
@@ -36,46 +86,6 @@ docker exec -it gitea-postgresql psql -U <user> -d <db> -c "ALTER USER <user> PA
 # update GITEA_DB_PASS in .env, then:
 docker compose up -d
 ```
-
-## SSO with Authentik
-
-Use OIDC, not NPM forward auth. Forward auth breaks git over HTTPS, API tokens and webhooks.
-
-1. In Authentik, create an OAuth2/OpenID provider and application. The redirect URI is `https://<gitea>/user/oauth2/<source name>/callback`.
-   Use **Confidential** client type and select a signing key, so tokens are signed with RS256. Bind a group to the application to control who can sign in.
-2. Add the login source in Gitea. Either use Site Administration → Authentication Sources → Add (OAuth2 → OpenID Connect), or the CLI. Put the client ID and secret in `.env` first. The CLI must run as `git`, because Gitea refuses to run as root:
-   ```sh
-   docker exec -u git gitea gitea admin auth add-oauth --name authentik \
-     --provider openidConnect \
-     --key "$GITEA_OIDC_CLIENT_ID" --secret "$GITEA_OIDC_CLIENT_SECRET" \
-     --auto-discover-url https://<authentik>/application/o/<slug>/.well-known/openid-configuration \
-     --scopes email --scopes profile
-   docker restart gitea
-   ```
-   - `--name` becomes part of the callback URL, so it must match the redirect URI in Authentik.
-   - Gitea adds the `openid` scope itself, and `profile` includes Authentik's `groups` claim.
-   - **Restart Gitea after any `auth add-oauth`/`update-oauth`.** The running server caches login sources, so CLI changes only take effect after a restart.
-   - Gitea stores the credentials in its database, so they don't need to stay in `.env` afterwards.
-3. Existing local accounts are linked on first SSO login, not duplicated. How that happens depends on `[oauth2_client] ACCOUNT_LINKING`:
-   - `login` (default): Gitea asks for the local password once.
-   - `auto`: links by matching email. Make sure Authentik emails match Gitea's first.
-4. To let new users register only through SSO:
-   ```yaml
-   GITEA__service__ALLOW_ONLY_EXTERNAL_REGISTRATION: "true"
-   GITEA__oauth2_client__ENABLE_AUTO_REGISTRATION: "true"
-   GITEA__oauth2_client__USERNAME: preferred_username
-   ```
-5. **Admin rights from an Authentik group** (optional):
-   ```sh
-   docker exec -u git gitea gitea admin auth update-oauth --id 1 \
-     --group-claim-name groups --admin-group gitea-admins
-   docker restart gitea
-   ```
-   Gitea syncs admin status on every SSO login. Anyone **not** in the group loses admin rights, so add yourself to the group in Authentik first. Logging in with a local password doesn't change admin status. To restore admin rights to someone by hand:
-   ```sh
-   docker exec gitea-postgresql psql -U <user> -d <db> -c "UPDATE \"user\" SET is_admin = true WHERE name = '<username>';"
-   ```
-6. Keep one local admin account with a password, as a way in if Authentik is down.
 
 ## Things to know
 

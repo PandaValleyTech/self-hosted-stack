@@ -34,6 +34,16 @@ Use OIDC. KitchenOwl supports it natively in the web and mobile apps. Forward au
 
 If Authentik won't accept the `kitchenowl:/` scheme, set `OIDC_RFC_COMPLIANT_REDIRECT=False` in `.env` and register `kitchenowl:///signin/redirect` instead.
 
+## Running more than one instance
+
+For a fully separate KitchenOwl (another household). Within one instance, households are already separate: each has its own lists, recipes and members.
+
+```sh
+scripts/new-instance.sh kitchenowl cabin    # creates kitchenowl/instances/cabin/, containers kitchenowl-cabin*
+```
+
+The script generates the JWT secret. Set `FRONT_URL` in its `.env`, then `docker compose up -d` from that directory, and add an NPM proxy host forwarding to `kitchenowl-cabin:80`. Each instance needs its own Authentik provider, because the redirect URI contains `FRONT_URL`. Details on how instances work are in [`immich/README.md`](../immich/README.md#running-more-than-one-instance).
+
 ## Postgres instead of SQLite
 
 SQLite is fine for a household. For more users, add a Postgres service on the `backend` network (same pattern as `gitea/compose.yaml`, with container name `kitchenowl-postgresql`) and set these in `.env`:

@@ -69,7 +69,7 @@ Every stack joins the external network `${APP_NETWORK:-apps}`. To use a differen
 
 ## Running more than one instance
 
-App stacks (so far `immich/` and `jellyfin/`) can run several independent instances side by side, e.g. a personal photo library and a family one. `docker compose up -d` in the stack directory runs the default instance. For another one:
+Every app stack can run several independent instances side by side, e.g. a personal photo library and a family one. `docker compose up -d` in the stack directory runs the default instance. For another one:
 
 ```sh
 scripts/new-instance.sh immich family    # creates immich/instances/family/ (gitignored)
@@ -79,7 +79,7 @@ direnv allow
 docker compose up -d
 ```
 
-Each instance has its own containers (`immich-family-*`), private network, `.env` and `data/`, and is managed from its own directory. The script refuses `npm` and `authentik` (one per host) and any stack whose container names don't come from its `<APP>_INSTANCE` variable yet. It also needs its own NPM proxy host and, for SSO, its own Authentik application. Details are in the stack's README.
+Each instance has its own containers (`immich-family-*`), private network, `.env` and `data/`, and is managed from its own directory. The script refuses `npm` and `authentik` (one per host) and any stack whose container names don't come from its `<APP>_INSTANCE` variable yet. Host ports such as Gitea's `GITEA_SSH_PORT` are copied from the example, and the script says to change them before the first start. It also needs its own NPM proxy host and, for SSO, its own Authentik application. Details are in the stack's README.
 
 ## Adding a stack
 
@@ -91,7 +91,7 @@ Each instance has its own containers (`immich-family-*`), private network, `.env
        external: true
    ```
 2. Put databases and other internal services on a stack-local network. Only the container NPM proxies to should join the shared network.
-3. Give that container a unique `container_name`, and use it as the forward host in NPM.
+3. Give every container a unique `container_name` starting with `${<APP>_INSTANCE:-<app>}` (add `<APP>_INSTANCE=<app>` to `.env.example`), and use the main one as the forward host in NPM. Internal hostnames use the same prefix, so `scripts/new-instance.sh` can run more instances.
 4. Don't publish host ports. Add a proxy host in NPM instead. The exception is non-HTTP protocols that clients connect to directly, such as git over SSH.
 5. Add `.envrc` (`source_up` + `dotenv_if_exists .env`) and `.env.example`.
 6. For SSO, use the app's native OIDC/SAML support with Authentik if it has it. Otherwise use forward auth (see [npm/snippets/README.md](npm/snippets/README.md)).
