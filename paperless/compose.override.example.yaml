@@ -1,0 +1,54 @@
+# Optional host-specific additions. Copy to compose.override.yaml (gitignored)
+# and keep only what you need.
+#
+# 1. Office documents and emails (.docx, .xlsx, .odt, .eml, ...). Tika
+#    extracts the text and Gotenberg renders a PDF. Both stay on the private
+#    network. Gotenberg's Chromium is locked down so emails can't load remote
+#    content or run JavaScript (as in the upstream compose file).
+#
+# 2. Documents on an NFS share instead of ./data/media. Compose merges service
+#    volumes by container path, so the entry below replaces the bind mount from
+#    compose.yaml. Keep data/postgres and data/data local. For the consume
+#    folder, set PAPERLESS_CONSUME_PATH to a mounted path, or use polling
+#    (PAPERLESS_CONSUMER_POLLING_INTERVAL) if inotify events don't arrive over
+#    NFS/SMB. The export must be writable by PAPERLESS_UID; watch out for
+#    root_squash. Volume options are fixed when the volume is created: after
+#    changing them, `docker compose down` and
+#    `docker volume rm <project>_<volume>` before the next `up`.
+services:
+  webserver:
+    depends_on:
+      - gotenberg
+      - tika
+    environment:
+      PAPERLESS_TIKA_ENABLED: 1
+      PAPERLESS_TIKA_ENDPOINT: http://paperless-tika:9998
+      PAPERLESS_TIKA_GOTENBERG_ENDPOINT: http://paperless-gotenberg:3000
+    volumes:
+      - paperless-media:/usr/src/paperless/media
+
+  gotenberg:
+    image: docker.io/gotenberg/gotenberg:8.38
+    container_name: paperless-gotenberg
+    restart: unless-stopped
+    command:
+      - "gotenberg"
+      - "--chromium-disable-javascript=true"
+      - "--chromium-allow-list=^file:///tmp/.*"
+    networks:
+      - backend
+
+  tika:
+    image: docker.io/apache/tika:3.3.1.0
+    container_name: paperless-tika
+    restart: unless-stopped
+    networks:
+      - backend
+
+volumes:
+  paperless-media:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=nas.example.lan,nfsvers=4.1,rw,hard
+      device: ":/export/paperless/media"

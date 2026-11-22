@@ -1,0 +1,79 @@
+# Based on the official Postgres compose file (v3.5.1):
+# https://github.com/paperless-ngx/paperless-ngx/tree/v3.5.1/docker/compose
+#
+# Postgres and Valkey sit on a private network only. The webserver also joins
+# the shared network so NPM can reach paperless:8000. Tika and Gotenberg
+# (Office/email parsing) are optional, see compose.override.example.yaml.
+#
+# .env is passed through to Paperless as well, so any PAPERLESS_* setting
+# (OCR language, SSO, ...) can go there without editing this file.
+services:
+  webserver:
+    image: ghcr.io/paperless-ngx/paperless-ngx:3.5.1
+    container_name: paperless
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      broker:
+        condition: service_started
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      PAPERLESS_URL: ${PAPERLESS_URL:?public URL required, e.g. https://paperless.example.com}
+      PAPERLESS_SECRET_KEY: ${PAPERLESS_SECRET_KEY:?secret key required}
+      PAPERLESS_REDIS: redis://paperless-redis:6379
+      PAPERLESS_DBENGINE: postgresql
+      PAPERLESS_DBHOST: paperless-postgresql
+      PAPERLESS_DBNAME: ${PAPERLESS_DBNAME:-paperless}
+      PAPERLESS_DBUSER: ${PAPERLESS_DBUSER:-paperless}
+      PAPERLESS_DBPASS: ${PAPERLESS_DBPASS:?database password required}
+      PAPERLESS_TIME_ZONE: ${TZ:-Etc/UTC}
+      USERMAP_UID: ${PAPERLESS_UID:-1000}
+      USERMAP_GID: ${PAPERLESS_GID:-1000}
+    volumes:
+      - ./data/data:/usr/src/paperless/data
+      - ./data/media:/usr/src/paperless/media
+      - ./data/export:/usr/src/paperless/export
+      - ${PAPERLESS_CONSUME_PATH:-./data/consume}:/usr/src/paperless/consume
+    networks:
+      - default
+      - backend
+
+  broker:
+    image: docker.io/valkey/valkey:9-alpine
+    container_name: paperless-redis
+    restart: unless-stopped
+    volumes:
+      - ./data/redis:/data
+    networks:
+      - backend
+
+  db:
+    image: docker.io/library/postgres:18-alpine
+    container_name: paperless-postgresql
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${PAPERLESS_DBNAME:-paperless}
+      POSTGRES_USER: ${PAPERLESS_DBUSER:-paperless}
+      POSTGRES_PASSWORD: ${PAPERLESS_DBPASS:?database password required}
+      TZ: ${TZ:-Etc/UTC}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    volumes:
+      # Postgres 18+ keeps its data in a versioned subdirectory of
+      # /var/lib/postgresql, so mount the parent (unlike the 16 stacks).
+      - ./data/postgres:/var/lib/postgresql
+    networks:
+      - backend
+
+networks:
+  default:
+    name: ${APP_NETWORK:-apps}
+    external: true
+  backend:
