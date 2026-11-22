@@ -1,0 +1,31 @@
+# Single container on the shared network; NPM reaches homebox:7745.
+# SQLite database and uploaded photos/attachments live in data/. The rootless
+# image runs as HOMEBOX_UID, so data/ stays owned by you rather than root.
+# .env is passed through, so any HBOX_* option (OIDC, registration, upload
+# size, ...) can go there without editing this file.
+# The container name comes from HOMEBOX_INSTANCE, so scripts/new-instance.sh
+# can run more instances of this file (see README.md).
+services:
+  homebox:
+    image: ghcr.io/sysadminsmedia/homebox:0.27.1-rootless
+    container_name: ${HOMEBOX_INSTANCE:-homebox}
+    restart: unless-stopped
+    user: ${HOMEBOX_UID:-1000}:${HOMEBOX_GID:-1000}
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      TZ: ${TZ:-Etc/UTC}
+      # Hashes API keys. At least 32 bytes; changing it invalidates every key.
+      HBOX_AUTH_API_KEY_PEPPER: ${HBOX_AUTH_API_KEY_PEPPER:?API key pepper required (openssl rand -base64 48)}
+      # Behind NPM: trust X-Forwarded-Proto so OIDC redirects and label QR
+      # codes use https://.
+      HBOX_OPTIONS_TRUST_PROXY: "true"
+      HBOX_OPTIONS_ALLOW_ANALYTICS: "false"
+    volumes:
+      - ./data:/data
+
+networks:
+  default:
+    name: ${APP_NETWORK:-apps}
+    external: true
