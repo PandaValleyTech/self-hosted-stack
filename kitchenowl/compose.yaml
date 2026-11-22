@@ -1,0 +1,44 @@
+# Based on the official multi-service compose file (v0.8.1):
+# https://github.com/TomBursch/kitchenowl/blob/v0.8.1/docker-compose.yml
+#
+# The web container (nginx + Flutter web app) joins the shared network so NPM
+# can reach kitchenowl:80, and forwards API calls to the backend over the
+# private network. The backend uses SQLite in data/; see README.md for
+# Postgres.
+#
+# .env is passed through to the backend, so optional settings (OIDC, SMTP,
+# OPEN_REGISTRATION, ...) can go there without editing this file.
+services:
+  web:
+    image: docker.io/tombursch/kitchenowl-web:${KITCHENOWL_VERSION:-v0.8.1}
+    container_name: kitchenowl
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      BACK_URL: kitchenowl-backend:5000
+    networks:
+      - default
+      - backend
+
+  backend:
+    image: docker.io/tombursch/kitchenowl-backend:${KITCHENOWL_VERSION:-v0.8.1}
+    container_name: kitchenowl-backend
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      TZ: ${TZ:-Etc/UTC}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT secret required}
+      FRONT_URL: ${FRONT_URL:?public URL required, e.g. https://kitchenowl.example.com}
+    volumes:
+      - ./data:/data
+    networks:
+      - backend
+
+networks:
+  default:
+    name: ${APP_NETWORK:-apps}
+    external: true
+  backend:

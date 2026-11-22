@@ -1,0 +1,22 @@
+# Optional: keep data on an NFS share instead of ./data. Copy to
+# compose.override.yaml (gitignored) and adjust the server and export path.
+#
+# Compose merges service volumes by container path, so the entry below
+# replaces the ./data bind mount from compose.yaml. data/ holds the SQLite
+# database as well as uploaded images. SQLite over NFS is sensitive to
+# locking: use NFSv4 with hard mounts, and consider DB_SQLITE_SYNCHRONOUS=NORMAL
+# in .env if writes are slow. Volume options are fixed when the volume is
+# created: after changing them, `docker compose down` and
+# `docker volume rm <project>_<volume>` before the next `up`.
+services:
+  backend:
+    volumes:
+      - kitchenowl-data:/data
+
+volumes:
+  kitchenowl-data:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=nas.example.lan,nfsvers=4.1,rw,hard
+      device: ":/export/kitchenowl"
