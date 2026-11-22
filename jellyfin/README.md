@@ -14,7 +14,7 @@ Media server: a single Jellyfin container.
 4. Open the site and run the setup wizard. Add libraries from `/media/...`.
 5. **Dashboard → Networking:** leave the base URL empty, and set **Known proxies** to `nginx-proxy-manager`, then restart Jellyfin. Jellyfin only trusts `X-Forwarded-For`/`-Proto` from known proxies, so without this it logs NPM's IP for every client and can't tell local from remote access. A container name works (Jellyfin resolves it at startup) and survives NPM getting a new IP when it's recreated, as long as Jellyfin is restarted afterwards. Don't use the whole `apps` subnet: that lets any container on the shared network fake a client IP.
 
-## Logins and SSO
+## SSO with Authentik
 
 Jellyfin has no built-in OIDC, and Authentik forward auth doesn't work here. Jellyfin's TV, mobile and desktop apps talk to the API directly and can't follow an Authentik login redirect, so forward auth locks out every client except the browser.
 
@@ -72,13 +72,13 @@ docker compose start
 
 Other things to know:
 
-- **Existing accounts** are matched by username, so make sure Jellyfin and Authentik usernames agree before anyone's first SSO login. Users can manage their SSO links at `/SSOViews/linking`.
+- **Existing accounts (matched by username):** an SSO login whose username matches an existing Jellyfin account signs in to that account. Make sure Jellyfin and Authentik usernames agree before anyone's first SSO login. Users can manage their SSO links at `/SSOViews/linking`.
 - **Removing someone:** take them out of the bound group in Authentik, which stops new SSO logins. Their Jellyfin account and any signed-in devices remain: disable the user and revoke devices under Dashboard → Users / Devices.
 - **Password login stays.** The plugin adds SSO but can't disable Jellyfin's own login, which is also how the local admin keeps working.
 - **No single logout:** logging out of Jellyfin doesn't log you out of Authentik.
 - **No MFA on password logins.** If the server is reachable from the internet, use long passwords for local accounts, and consider an NPM access list limited to your LAN or VPN.
 
-## More than one instance
+## Running more than one instance
 
 Not usually needed: one Jellyfin serves several users, each with their own libraries and parental controls. If you do need a fully separate one (another household, a test instance for upgrades), the stack supports it like Immich:
 
@@ -91,6 +91,6 @@ Set `JELLYFIN_URL` and `JELLYFIN_MEDIA_PATH` in its `.env`, then `docker compose
 ## Things to know
 
 - **Backups:** stop the container and copy `data/config`. The cache isn't worth backing up. Your media is backed up separately, and that backup also covers any artwork, NFO and trickplay files Jellyfin saved next to it.
-- **Media deletion:** with a writable mount, users who have **Allow media deletion** (Dashboard → Users) can delete files from disk through Jellyfin. Leave it off for everyone except admins.
 - **Upgrades:** bump the image tag in `compose.yaml`, read the release notes, back up `data/config`, then `docker compose pull && docker compose up -d`. Major upgrades migrate the database and take a while on first start, and downgrades need a restore.
+- **Media deletion:** with a writable mount, users who have **Allow media deletion** (Dashboard → Users) can delete files from disk through Jellyfin. Leave it off for everyone except admins.
 - **Hardware transcoding and LAN discovery:** see `compose.override.example.yaml`. DLNA needs host networking and isn't set up here.

@@ -43,7 +43,7 @@ Use OIDC. Immich supports it natively, and the mobile app can use it. Forward au
    - Client ID and secret from Authentik
    - Scope: `openid email profile` (the default)
    - Button text: e.g. `Sign in with Authentik`
-3. **Auto register** (on by default) creates an Immich user on first SSO login. If you already have an Immich account, link it before your first SSO login, so you don't end up with a second, empty one: sign in with your password, then **Account Settings → OAuth → Link to OAuth**.
+3. **Existing accounts (matched by email):** an SSO login signs in to the account already linked to that Authentik user, or else to the account with the **same email**, and links it. If someone's Immich email differs from their Authentik email, link before their first SSO login: sign in with the password, then **Account Settings → OAuth → Link to OAuth**. Otherwise **Auto register** (on by default) creates a second, empty account.
 4. If Authentik rejects the `app.immich:///` scheme, add `https://<immich>/api/oauth/mobile-redirect` as a redirect URI instead and set it as the **Mobile redirect URI override**.
 5. Keep the password login on, and keep a local admin account with a password, as a way in if Authentik is down. **Auto launch** is fine: `/auth/login?autoLaunch=0` still shows the password form.
 

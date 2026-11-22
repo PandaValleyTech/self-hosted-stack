@@ -39,7 +39,7 @@ Use OIDC. Paperless supports it natively through django-allauth. Forward auth wo
    ```
 3. `docker compose up -d`. The login page now shows a **Sign in with Authentik** button.
 4. **New users:** with `PAPERLESS_SOCIAL_AUTO_SIGNUP=true`, a first SSO login creates the account straight from the Authentik profile. New accounts have no permissions until you grant them, or add them to a group automatically with `PAPERLESS_SOCIAL_ACCOUNT_DEFAULT_GROUPS`.
-5. **Existing users:** sign in with your password, then connect Authentik under **My Profile → Connected accounts**. Do this before the first SSO login, or a second account gets created.
+5. **Existing accounts (not matched):** an SSO login only signs in to an account already connected to Authentik. It doesn't match by username or email. So connect before the first SSO login: sign in with your password, then **My Profile → Connected accounts**. Otherwise a second account gets created.
 
    That second account has no permissions, so the UI fails straight away with `Http failure response for https://<paperless>/api/ui_settings/: 403` / `"You do not have permission to perform this action."`. To fix it, sign in with your password, delete the new account under **Settings → Users & Groups** (deleting it also removes its Authentik link), and connect Authentik from your own profile.
 6. **Password login:** `PAPERLESS_DISABLE_REGULAR_LOGIN=true` hides the password form, and `PAPERLESS_REDIRECT_LOGIN_TO_SSO=true` sends users straight to Authentik. Neither one disables password logins on the API or `/admin/`. That's what keeps apps and scripts working, and it gives you a way in if Authentik is down. Keep a local superuser with a strong password either way.

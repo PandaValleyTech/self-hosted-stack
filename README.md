@@ -9,6 +9,7 @@ Docker Compose stacks for a small self-hosted setup:
 - **[Jellyfin](jellyfin/):** media server. SSO via an OIDC plugin for the web, Quick Connect for apps (they can't do forward auth).
 - **[Paperless-ngx](paperless/):** document management with OCR. SSO via OIDC.
 - **[KitchenOwl](kitchenowl/):** shared grocery lists, recipes and meal plans. SSO via OIDC.
+- **[Homebox](homebox/):** home inventory: items, locations, receipts and manuals. SSO via OIDC.
 - **[OpenSpeedTest](openspeedtest/):** browser speed test. Behind Authentik forward auth.
 
 Each stack lives in its own directory and runs independently. All stacks join one shared Docker network, so NPM can reach every service by container name.

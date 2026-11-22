@@ -79,7 +79,7 @@ set_var=false
     if [[ $line == "$var="* ]]; then
       echo "$var=$project"
       set_var=true
-    elif [[ $line =~ ^[A-Z0-9_]*(PASS|PASSWORD|SECRET|SECRET_KEY)=$ ]]; then
+    elif [[ $line =~ ^[A-Z0-9_]*(PASS|PASSWORD|SECRET|SECRET_KEY|PEPPER)=$ ]]; then
       # Hex: safe for every app here (Immich wants letters and digits only).
       echo "$key=$(openssl rand -hex 32)"
       generated+=("$key")
